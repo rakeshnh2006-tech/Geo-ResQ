@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}User Management — GeoResQ{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-3">
+  <h1 style="font-size:1.6rem;font-weight:800;letter-spacing:-0.03em">User Management</h1>
+  <span class="badge badge-orange">{{ users|length }} users</span>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">
+    <span>Invite Coordinator</span>
+  </div>
+  <form method="post" action="{{ url_for('auth.admin_invite_coordinator') }}" novalidate>
+    {{ invite_form.hidden_tag() }}
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;align-items:end">
+      <div class="form-group" style="margin-bottom:0">
+        {{ invite_form.full_name.label }}
+        {{ invite_form.full_name(class="form-control", placeholder="Full name") }}
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        {{ invite_form.email.label }}
+        {{ invite_form.email(class="form-control", placeholder="email@example.com") }}
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        {{ invite_form.password.label }}
+        {{ invite_form.password(class="form-control") }}
+      </div>
+      <button type="submit" class="btn btn-primary" style="margin-top:4px">Create</button>
+    </div>
+    {% for field in [invite_form.full_name, invite_form.email, invite_form.password] %}
+      {% for err in field.errors %}<p class="form-error">{{ err }}</p>{% endfor %}
+    {% endfor %}
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span>All Users</span>
+  </div>
+  <div class="table-wrap" style="margin:0 -32px -28px;border:none;border-radius:0 0 var(--radius-lg) var(--radius-lg)">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Active</th><th>Joined</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr style="{{ 'opacity:0.5' if not u.is_active }}">
+          <td class="text-muted text-xs">{{ u.id }}</td>
+          <td class="font-semibold">{{ u.full_name }}</td>
+          <td class="text-sm">{{ u.email }}</td>
+          <td>
+            <span class="badge {% if u.role.value == 'coordinator' %}badge-orange{% else %}badge-verified{% endif %}">
+              {{ u.role.value }}
+            </span>
+          </td>
+          <td>
+            <span class="badge {% if u.is_active %}badge-verified{% else %}badge-incomplete{% endif %}">
+              {{ "Active" if u.is_active else "Inactive" }}
+            </span>
+          </td>
+          <td class="text-sm text-muted">{{ u.created_at.strftime('%Y-%m-%d') }}</td>
+          <td>
+            {% if u.id != current_user.id %}
+            <form method="post" action="{{ url_for('auth.admin_toggle_user', user_id=u.id) }}" style="display:inline">
+              {{ invite_form.hidden_tag() }}
+              <button type="submit" class="btn btn-sm {% if u.is_active %}btn-danger{% else %}btn-secondary{% endif %}">
+                {{ "Deactivate" if u.is_active else "Activate" }}
+              </button>
+            </form>
+            {% else %}
+            <span class="text-muted text-xs">(you)</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

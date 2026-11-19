@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% block title %}Report an Incident — GeoResQ{% endblock %}
+
+{% block content %}
+<div class="container-sm">
+  <div class="mt-3 mb-3">
+    <h1 style="font-size:1.8rem;font-weight:800;letter-spacing:-0.03em;color:var(--text-primary)">
+      Report a Disaster Incident
+    </h1>
+    <p class="text-muted mt-1">
+      Use this form to report flooding, landslides, road blockages, or other
+      emergencies in the Malenadu region. No account required.
+    </p>
+  </div>
+
+  <div class="card">
+    <form method="post" novalidate id="report-form" enctype="multipart/form-data">
+      {{ form.hidden_tag() }}
+
+      <!-- Hidden GPS fields — populated by browser Geolocation -->
+      {{ form.user_lat(id="user_lat", type="hidden") }}
+      {{ form.user_lng(id="user_lng", type="hidden") }}
+
+      <div class="form-group">
+        {{ form.description.label }}
+        {{ form.description(class="form-control", rows=6,
+           placeholder="Describe what happened, where, when, and how many people are affected…") }}
+        {% for err in form.description.errors %}
+          <p class="form-error">{{ err }}</p>
+        {% endfor %}
+      </div>
+
+      <div class="form-group">
+        {{ form.location_hint.label }}
+        {{ form.location_hint(class="form-control",
+           placeholder="e.g. Hornadu village, NH-73 near Kalasa") }}
+      </div>
+
+      <!-- Live location widget -->
+      <div class="form-group">
+        <label>Share Your Live Location <span class="text-muted">(recommended)</span></label>
+        <div class="flex items-center gap-1" style="flex-wrap:wrap">
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-locate"
+                  onclick="shareLocation('user_lat','user_lng','loc-status')">
+            &#128204; Share My Location
+          </button>
+          <span id="loc-status" class="text-sm text-muted"></span>
+        </div>
+      </div>
+
+      <!-- Photo / Camera widget -->
+      <div class="form-group">
+        <label>Photo Evidence <span class="text-muted">(optional, up to 5 images)</span></label>
+
+        <!-- Camera capture buttons -->
+        <div class="flex gap-1 mb-2" style="flex-wrap:wrap">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="openCamera()">
+            &#128247; Take Photo
+          </button>
+          <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0">
+            &#128193; Choose Files
+            <input type="file" id="photo-file-input" name="photo_files"
+                   accept="image/*" multiple capture="environment"
+                   style="display:none" onchange="handleFileSelect(this)">
+          </label>
+        </div>
+
+        <!-- Live camera preview (shown when camera is open) -->
+        <div id="camera-container" style="display:none;margin-bottom:12px">
+          <div style="position:relative;border-radius:var(--radius-md);overflow:hidden;
+                      border:2px solid var(--border);background:#000;max-width:420px">
+            <video id="camera-video" autoplay playsinline
+                   style="width:100%;display:block;max-height:300px;object-fit:cover"></video>
+            <div style="position:absolute;bottom:12px;left:0;right:0;
+                        display:flex;justify-content:center;gap:12px">
+              <button type="button" class="btn btn-primary" onclick="capturePhoto()"
+                      style="backdrop-filter:blur(8px)">
+                &#9711; Capture
+              </button>
+              <button type="button" class="btn btn-secondary" onclick="closeCamera()"
+                      style="backdrop-filter:blur(8px)">
+                ✕ Close
+              </button>
+            </div>
+          </div>
+          <canvas id="camera-canvas" style="display:none"></canvas>
+        </div>
+
+        <!-- Preview grid of selected/captured photos -->
+        <div id="photo-preview-grid" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px"></div>
+        <input type="hidden" id="captured-count" value="0">
+        <p class="text-xs text-muted mt-1">
+          Accepted: JPG, PNG, GIF, WebP · Max 10 MB per image
+        </p>
+      </div>
+
+      <div class="form-group">
+        {{ form.contact.label }}
+        {{ form.contact(class="form-control",
+           placeholder="Optional — helps us follow up") }}
+      </div>
+
+      <div class="flex gap-1 mt-2">
+        <button type="submit" class="btn btn-primary" id="btn-submit">Submit Report</button>
+        <a href="{{ url_for('public.index') }}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+
+  <p class="text-muted text-xs mt-2">
+    Your report is processed by an AI assistant (IBM Granite) and reviewed
+    by a human coordinator before any action is taken.
+    Rate limit: 10 submissions per hour per IP address.
+  </p>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* ── Captured photos stored as File/Blob objects ── */
+const capturedPhotos = [];   // {blob, name, preview}
+let cameraStream = null;
+
+/* ── File input handler ── */
+function handleFileSelect(input) {
+  const files = Array.from(input.files || []);
+  files.forEach(f => {
+    if (capturedPhotos.length >= 5) return;
+    capturedPhotos.push({ blob: f, name: f.name, type: f.type });
+    addPreview(URL.createObjectURL(f), f.name);
+  });
+}
+
+/* ── Open device camera ── */
+async function openCamera() {
+  const container = document.getElementById('camera-container');
+  const video     = document.getElementById('camera-video');
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false,
+    });
+    video.srcObject = cameraStream;
+    container.style.display = 'block';
+  } catch (err) {
+    alert('Camera access denied or unavailable. Please use "Choose Files" to upload photos.');
+  }
+}
+
+/* ── Capture a frame from the video feed ── */
+function capturePhoto() {
+  if (capturedPhotos.length >= 5) {
+    alert('Maximum 5 photos per report.');
+    return;
+  }
+  const video  = document.getElementById('camera-video');
+  const canvas = document.getElementById('camera-canvas');
+  canvas.width  = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  canvas.toBlob(blob => {
+    if (!blob) return;
+    const name = `capture_${Date.now()}.jpg`;
+    capturedPhotos.push({ blob, name, type: 'image/jpeg' });
+    addPreview(URL.createObjectURL(blob), name);
+  }, 'image/jpeg', 0.88);
+}
+
+/* ── Close camera and release stream ── */
+function closeCamera() {
+  if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+  document.getElementById('camera-container').style.display = 'none';
+}
+
+/* ── Add a thumbnail to the preview grid ── */
+function addPreview(src, name) {
+  const grid = document.getElementById('photo-preview-grid');
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:relative;width:88px;height:88px;border-radius:var(--radius-md);' +
+    'overflow:hidden;border:1.5px solid var(--border);flex-shrink:0';
+  const idx = capturedPhotos.length - 1;
+  wrap.innerHTML = `
+    <img src="${src}" style="width:100%;height:100%;object-fit:cover">
+    <button type="button"
+      onclick="removePhoto(${idx}, this.parentElement)"
+      style="position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;
+             background:rgba(0,0,0,0.55);border:none;color:#fff;cursor:pointer;
+             font-size:11px;display:flex;align-items:center;justify-content:center;line-height:1">
+      ✕
+    </button>`;
+  grid.appendChild(wrap);
+}
+
+/* ── Remove a photo from the list ── */
+function removePhoto(idx, el) {
+  capturedPhotos.splice(idx, 1);
+  el.remove();
+}
+
+/* ── On form submit: upload photos then redirect ── */
+document.getElementById('report-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+
+  // 1. Submit the main form via fetch (gets incident ID back)
+  const formData = new FormData(this);
+  // Remove any photo file inputs — we'll upload separately
+  formData.delete('photo_files');
+
+  let incidentId = null;
+  try {
+    const r = await fetch('/api/incidents', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCsrfToken(),
+      },
+      body: JSON.stringify({
+        description: formData.get('description'),
+        location_hint: formData.get('location_hint'),
+        user_lat: formData.get('user_lat') || null,
+        user_lng: formData.get('user_lng') || null,
+      }),
+    });
+    if (r.ok) {
+      const data = await r.json();
+      incidentId = data.incident?.id;
+    }
+  } catch (_) {}
+
+  // 2. Upload photos if we have any and got an incident ID
+  if (incidentId && capturedPhotos.length > 0) {
+    const pd = new FormData();
+    capturedPhotos.forEach(p => pd.append('photos', new File([p.blob], p.name, { type: p.type })));
+    try {
+      await fetch(`/api/incidents/${incidentId}/photos`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCsrfToken() },
+        body: pd,
+      });
+    } catch (_) {}
+  }
+
+  // 3. Redirect to status page
+  window.location.href = '/status';
+});
+</script>
+{% endblock %}

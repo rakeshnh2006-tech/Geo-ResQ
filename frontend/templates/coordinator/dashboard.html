@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Coordinator Dashboard — GeoResQ{% endblock %}
+
+{% block extra_head %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<style>
+  /* Full-bleed dashboard — override container padding */
+  main.container { padding-top: 20px; padding-bottom: 20px; max-width: 100%; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Stat chips row -->
+<div class="stat-grid" style="grid-template-columns:repeat(5,1fr)">
+  <div class="stat-chip">
+    <span class="stat-value" id="stat-total">—</span>
+    <span class="stat-label">Total</span>
+  </div>
+  <div class="stat-chip">
+    <span class="stat-value" id="stat-verified" style="color:var(--color-success)">—</span>
+    <span class="stat-label">Verified</span>
+  </div>
+  <div class="stat-chip">
+    <span class="stat-value" id="stat-pending" style="color:var(--color-warning)">—</span>
+    <span class="stat-label">Pending</span>
+  </div>
+  <div class="stat-chip">
+    <span class="stat-value" id="stat-incomplete" style="color:var(--color-danger)">—</span>
+    <span class="stat-label">Incomplete</span>
+  </div>
+  <div class="stat-chip">
+    <span class="stat-value" id="stat-isolated" style="color:var(--accent-dark)">—</span>
+    <span class="stat-label">Isolated</span>
+  </div>
+</div>
+
+<div class="dashboard-layout">
+
+  <!-- ── Map ─────────────────────────────────────────────────────── -->
+  <div class="map-panel">
+    <div id="map"></div>
+  </div>
+
+  <!-- ── Sidebar ──────────────────────────────────────────────────── -->
+  <aside class="sidebar-panel">
+
+    <div class="sidebar-header">
+      <div class="tab-nav">
+        <button class="tab-btn active" data-tab="tab-incidents">Incidents</button>
+        <button class="tab-btn" data-tab="tab-roads">Roads</button>
+        <button class="tab-btn" data-tab="tab-relief">Relief</button>
+        <button class="tab-btn" data-tab="tab-briefings">Briefings</button>
+      </div>
+    </div>
+
+    <div class="sidebar-body">
+
+      <!-- Incidents panel -->
+      <div id="tab-incidents" class="tab-panel active">
+        <div id="incident-list" class="panel-list">
+          <div class="empty-state"><span class="spinner"></span></div>
+        </div>
+      </div>
+
+      <!-- Roads / Accessibility panel -->
+      <div id="tab-roads" class="tab-panel">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-sm font-semibold">Blocked Roads</span>
+          <button class="btn btn-secondary btn-sm"
+                  onclick="fetch('/api/accessibility/run',{method:'POST',headers:{'X-CSRFToken':getCsrfToken()}}).then(()=>{clearMap();loadAll()})">
+            Re-run Analysis
+          </button>
+        </div>
+        <div id="road-list" class="panel-list mb-3">
+          <div class="empty-state"><span class="spinner"></span></div>
+        </div>
+        <p class="text-sm font-semibold mb-2">Isolated Villages</p>
+        <div id="accessibility-list" class="panel-list">
+          <div class="empty-state"><span class="spinner"></span></div>
+        </div>
+      </div>
+
+      <!-- Relief / Prioritization panel -->
+      <div id="tab-relief" class="tab-panel">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-sm font-semibold">Ranked Relief Requests</span>
+          <button id="btn-run-prio" class="btn btn-primary btn-sm" onclick="runPrioritization()">
+            Re-score
+          </button>
+        </div>
+        <div id="priority-list" class="panel-list">
+          <div class="empty-state"><span class="spinner"></span></div>
+        </div>
+      </div>
+
+      <!-- Briefings panel -->
+      <div id="tab-briefings" class="tab-panel">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-sm font-semibold">Situation Briefings</span>
+          <button id="btn-briefing" class="btn btn-primary btn-sm" onclick="generateBriefing()">
+            Generate
+          </button>
+        </div>
+        <div id="briefing-list" class="panel-list">
+          <div class="empty-state"><span class="spinner"></span></div>
+        </div>
+      </div>
+
+    </div><!-- /sidebar-body -->
+  </aside><!-- /sidebar-panel -->
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    loadPrioritization();
+    loadBriefings();
+  });
+</script>
+
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+
+{% if config.GOOGLE_MAPS_API_KEY %}
+<script
+  src="https://maps.googleapis.com/maps/api/js?key={{ config.GOOGLE_MAPS_API_KEY }}&callback=initMap"
+  async defer></script>
+{% else %}
+<script>
+  /* No GOOGLE_MAPS_API_KEY set — render placeholder */
+  const mapEl = document.getElementById('map');
+  mapEl.style.cssText =
+    'display:flex;align-items:center;justify-content:center;height:100%;' +
+    'color:var(--text-muted);font-size:.9rem;flex-direction:column;gap:8px';
+  mapEl.innerHTML = '<span style="font-size:2rem">&#128204;</span>' +
+    '<span>Google Maps API key not configured</span>';
+  /* Still load data into sidebar */
+  loadAll();
+</script>
+{% endif %}
+{% endblock %}

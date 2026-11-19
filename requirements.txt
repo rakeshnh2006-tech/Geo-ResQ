@@ -1,0 +1,42 @@
+
+# Web framework
+Flask==3.0.3
+Flask-Login==0.6.3
+Flask-WTF==1.2.1
+Flask-Limiter==3.8.0
+Flask-SQLAlchemy==3.1.1
+email-validator==2.2.0
+
+# Database
+SQLAlchemy==2.0.36
+PyMySQL==1.1.1
+cryptography==43.0.3
+
+# LLM
+ibm-watsonx-ai==1.1.2
+
+# Validation
+pydantic==2.9.2
+
+# Graph
+networkx==3.4.2
+
+# PDF export
+WeasyPrint==62.3
+
+# Auth
+bcrypt==4.2.0
+
+# Logging
+python-json-logger==2.0.7
+
+# OSM import
+osmium==3.7.0
+
+# WSGI server
+gunicorn==23.0.0
+
+# Utilities
+python-dotenv==1.0.1
+requests==2.32.3
+haversine==2.8.1

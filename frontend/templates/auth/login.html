@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Log in — GeoResQ{% endblock %}
+
+{% block content %}
+<div class="auth-card">
+  <h1>Log in</h1>
+  <p class="auth-subtitle">Welcome back to GeoResQ</p>
+  <form method="post" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div class="form-group">
+      {{ form.email.label }}
+      {{ form.email(class="form-control", placeholder="email@example.com") }}
+      {% for err in form.email.errors %}<p class="form-error">{{ err }}</p>{% endfor %}
+    </div>
+
+    <div class="form-group">
+      {{ form.password.label }}
+      {{ form.password(class="form-control") }}
+      {% for err in form.password.errors %}<p class="form-error">{{ err }}</p>{% endfor %}
+    </div>
+
+    <div class="form-group form-check">
+      {{ form.remember_me() }}
+      {{ form.remember_me.label }}
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-block mt-2">Log in</button>
+  </form>
+  <p class="text-muted text-sm mt-2 text-center">No account? <a href="{{ url_for('auth.register') }}">Register here</a></p>
+</div>
+{% endblock %}

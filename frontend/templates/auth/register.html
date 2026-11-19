@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Register — GeoResQ{% endblock %}
+
+{% block content %}
+<div class="auth-card">
+  <h1>Create an account</h1>
+  <p class="auth-subtitle">Join GeoResQ to report incidents and request relief</p>
+  <form method="post" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div class="form-group">
+      {{ form.full_name.label }}
+      {{ form.full_name(class="form-control", placeholder="Your full name") }}
+      {% for err in form.full_name.errors %}<p class="form-error">{{ err }}</p>{% endfor %}
+    </div>
+
+    <div class="form-group">
+      {{ form.email.label }}
+      {{ form.email(class="form-control", placeholder="email@example.com") }}
+      {% for err in form.email.errors %}<p class="form-error">{{ err }}</p>{% endfor %}
+    </div>
+
+    <div class="form-group">
+      {{ form.password.label }}
+      {{ form.password(class="form-control") }}
+      {% for err in form.password.errors %}<p class="form-error">{{ err }}</p>{% endfor %}
+    </div>
+
+    <div class="form-group">
+      {{ form.confirm_password.label }}
+      {{ form.confirm_password(class="form-control") }}
+      {% for err in form.confirm_password.errors %}<p class="form-error">{{ err }}</p>{% endfor %}
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-block mt-2">Create Account</button>
+  </form>
+  <p class="text-muted text-sm mt-2 text-center">Already have an account? <a href="{{ url_for('auth.login') }}">Log in</a></p>
+</div>
+{% endblock %}
