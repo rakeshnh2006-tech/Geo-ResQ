@@ -1,0 +1,11 @@
+# Development / OSM import extras — NOT needed at runtime
+# Install with: pip install -r requirements.txt -r requirements-dev.txt
+-r requirements.txt
+
+# Testing
+pytest==9.2.0
+
+# OSM road-network import (scripts/import_osm.py only)
+osmium==4.3.2
+numpy==2.5.5
+pandas==3.1.1

@@ -36,9 +36,18 @@ class Config:
     # Google Maps
     GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "")
 
-    # Upload folder
-    UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", "frontend/static/uploads")
+    # Upload folder — on Vercel/serverless only /tmp is writable
+    UPLOAD_FOLDER = os.environ.get(
+        "UPLOAD_FOLDER",
+        "/tmp/uploads" if os.environ.get("VERCEL") else "frontend/static/uploads",
+    )
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50 MB max request
+
+    # PDF output dir — on Vercel only /tmp is writable
+    PDF_DIR = os.environ.get(
+        "PDF_DIR",
+        "/tmp/briefings" if os.environ.get("VERCEL") else "instance/briefings",
+    )
 
 
 class DevelopmentConfig(Config):

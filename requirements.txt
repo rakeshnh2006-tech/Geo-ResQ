@@ -55,11 +55,7 @@ bcrypt==5.0.0
 # Logging
 python-json-logger==4.2.0
 
-# OSM import
-osmium==4.3.2
-numpy==2.5.5
-
-# WSGI server
+# WSGI server (Render / Docker — not used by Vercel)
 gunicorn==27.0.1
 
 # Utilities
@@ -77,8 +73,7 @@ httpcore==1.0.9
 httpx==0.28.1
 h11==0.16.0
 
-# Data (watsonx / OSM dependencies)
-pandas==3.1.1
+# Shared dependencies
 python-dateutil==2.9.0.post0
 six==1.17.0
 tabulate==0.10.0
