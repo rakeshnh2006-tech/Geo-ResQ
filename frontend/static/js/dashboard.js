@@ -10,6 +10,9 @@ const roadPolylines    = [];
 const villageMarkers   = [];
 const liveLocMarkers   = [];   // user-submitted GPS pins (blue)
 
+// Cache of all incidents loaded (used by gallery + modal)
+let _incidents = [];
+
 // ── Map initialisation (called by Google Maps callback) ──────────────────
 function initMap() {
   map = new google.maps.Map(document.getElementById('map'), {
@@ -45,8 +48,10 @@ async function loadIncidents() {
   const res = await fetch('/api/incidents');
   if (!res.ok) return;
   const { incidents } = await res.json();
+  _incidents = incidents;
   renderIncidentList(incidents);
   renderIncidentMarkers(incidents);
+  loadImagesGallery(incidents);
 }
 
 function renderIncidentMarkers(incidents) {
@@ -65,15 +70,7 @@ function renderIncidentMarkers(incidents) {
         strokeWeight: 1.5,
       },
     });
-    marker.addListener('click', () => {
-      infoWindow.setContent(
-        `<b>${inc.location_name || '—'}</b><br>
-         Type: ${inc.incident_type || '—'} | Sev: ${inc.severity || '—'}<br>
-         Status: <span class="badge badge-${inc.status}">${inc.status}</span><br>
-         Households: ${inc.affected_households ?? '—'}`
-      );
-      infoWindow.open(map, marker);
-    });
+    marker.addListener('click', () => openIncidentModal(inc));
     incidentMarkers.push(marker);
   });
 }
@@ -86,7 +83,8 @@ function renderIncidentList(incidents) {
     return;
   }
   container.innerHTML = incidents.map(inc => `
-    <div class="panel-item" data-id="${inc.id}" id="incident-card-${inc.id}">
+    <div class="panel-item" data-id="${inc.id}" id="incident-card-${inc.id}"
+         style="cursor:pointer" onclick="openIncidentModal(${JSON.stringify(inc).replace(/"/g,'&quot;')})">
       <div class="panel-item-title">
         <span class="severity-dot sev-${inc.severity || 1}"></span>
         ${inc.location_name || '<em style="opacity:.6">Extracting location…</em>'}
@@ -102,44 +100,137 @@ function renderIncidentList(incidents) {
         <span>Sev ${inc.severity || '—'}</span>
         <span>${inc.affected_households ?? '—'} hh</span>
         ${inc.photo_count ? `<span>&#128247; ${inc.photo_count} photo${inc.photo_count > 1 ? 's' : ''}</span>` : ''}
+        ${inc.lat ? `<span>&#128204; ${inc.lat.toFixed(4)}, ${inc.lng.toFixed(4)}</span>` : ''}
       </div>
-      <div id="photos-${inc.id}" style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 2px"></div>
-      <div class="panel-item-actions">
+      <div class="panel-item-actions" onclick="event.stopPropagation()">
         <button class="btn btn-sm btn-secondary" onclick="verifyIncident(${inc.id})">Verify</button>
         <button class="btn btn-sm btn-danger"    onclick="rejectIncident(${inc.id})">Reject</button>
-        ${inc.photo_count ? `<button class="btn btn-sm btn-secondary" onclick="togglePhotos(${inc.id})">&#128247; Photos</button>` : ''}
+        <button class="btn btn-sm btn-secondary" onclick="openIncidentModal(${JSON.stringify(inc).replace(/"/g,'&quot;')})">&#128247; Detail</button>
       </div>
     </div>`).join('');
-
-  // Pre-load photo thumbnails for incidents that have them
-  incidents.filter(i => i.photo_count > 0).forEach(i => loadIncidentPhotos(i.id));
 }
 
-async function loadIncidentPhotos(incidentId) {
-  const container = document.getElementById(`photos-${incidentId}`);
-  if (!container) return;
-  const res = await fetch(`/api/incidents/${incidentId}/photos`);
-  if (!res.ok) return;
-  const { photos } = await res.json();
-  container.style.display = photos.length ? 'flex' : 'none';
-  container.innerHTML = photos.map(p => `
-    <a href="${p.url}" target="_blank"
-       style="display:block;width:60px;height:60px;border-radius:var(--radius-sm);
-              overflow:hidden;border:1.5px solid var(--border);flex-shrink:0">
-      <img src="${p.url}" style="width:100%;height:100%;object-fit:cover"
-           alt="Evidence photo" loading="lazy">
-    </a>`).join('');
+// ── Images gallery tab ────────────────────────────────────────────────────
+async function loadImagesGallery(incidents) {
+  const gallery = document.getElementById('images-gallery');
+  if (!gallery) return;
+
+  // Fetch photos for all incidents that have them
+  const withPhotos = incidents.filter(i => i.photo_count > 0);
+  if (!withPhotos.length) {
+    gallery.innerHTML = '<div class="empty-state" style="grid-column:1/-1">No photos submitted yet.</div>';
+    return;
+  }
+
+  gallery.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><span class="spinner"></span></div>';
+
+  const allPhotos = [];
+  await Promise.all(withPhotos.map(async inc => {
+    const r = await fetch(`/api/incidents/${inc.id}/photos`);
+    if (!r.ok) return;
+    const { photos } = await r.json();
+    photos.forEach(p => allPhotos.push({ ...p, incident: inc }));
+  }));
+
+  if (!allPhotos.length) {
+    gallery.innerHTML = '<div class="empty-state" style="grid-column:1/-1">No photos found.</div>';
+    return;
+  }
+
+  gallery.innerHTML = allPhotos.map(p => `
+    <div class="gallery-item" onclick="openIncidentModal(${JSON.stringify(p.incident).replace(/"/g,'&quot;')})">
+      <img src="${p.url}" alt="Photo for incident #${p.incident.id}" loading="lazy">
+      <div class="gallery-label">
+        #${p.incident.id} ${p.incident.location_name || ''}
+      </div>
+    </div>`).join('');
 }
 
-function togglePhotos(incidentId) {
-  const container = document.getElementById(`photos-${incidentId}`);
-  if (!container) return;
-  if (container.children.length) {
-    container.style.display = container.style.display === 'none' ? 'flex' : 'none';
+// ── Incident detail modal ─────────────────────────────────────────────────
+async function openIncidentModal(inc) {
+  if (typeof inc === 'string') { try { inc = JSON.parse(inc); } catch(_) { return; } }
+
+  // Set header
+  document.getElementById('modal-title').textContent =
+    `Incident #${inc.id} — ${inc.location_name || 'Unknown Location'}`;
+
+  // Raw text quote
+  const rawEl = document.getElementById('modal-raw-text');
+  rawEl.textContent = inc.raw_text || '—';
+
+  // Meta grid
+  const metaEl = document.getElementById('modal-meta');
+  const statusColour = { verified:'#16a34a', pending:'#ca8a04', incomplete:'#dc2626',
+                         duplicate:'#6b7280', rejected:'#9f1239' };
+  metaEl.innerHTML = `
+    <dt>Type</dt>       <dd>${(inc.incident_type||'—').replace('_',' ')}</dd>
+    <dt>Severity</dt>   <dd>${inc.severity ? '⬛'.repeat(inc.severity) + ' ' + inc.severity + '/5' : '—'}</dd>
+    <dt>Status</dt>     <dd style="color:${statusColour[inc.status]||'inherit'}">${inc.status}</dd>
+    <dt>Households</dt> <dd>${inc.affected_households ?? '—'}</dd>
+    <dt>Reported</dt>   <dd>${inc.created_at ? inc.created_at.slice(0,19).replace('T',' ') : '—'}</dd>
+    <dt>Photos</dt>     <dd>${inc.photo_count || 0}</dd>`;
+
+  // Location
+  const locEl = document.getElementById('modal-location');
+  if (inc.lat && inc.lng) {
+    locEl.innerHTML = `${inc.location_name || 'GPS coordinates'} &nbsp;
+      <a href="https://maps.google.com/?q=${inc.lat},${inc.lng}" target="_blank"
+         style="color:var(--accent,#f97316);font-size:.8rem">
+        ${inc.lat.toFixed(5)}, ${inc.lng.toFixed(5)} ↗
+      </a>`;
   } else {
-    loadIncidentPhotos(incidentId);
+    locEl.textContent = inc.location_name || 'No location data';
+  }
+
+  // Actions
+  const actionsEl = document.getElementById('modal-actions');
+  actionsEl.innerHTML = `
+    <button class="btn btn-secondary btn-sm" onclick="verifyIncident(${inc.id});closeModalDirect()">Verify</button>
+    <button class="btn btn-danger btn-sm"    onclick="rejectIncident(${inc.id});closeModalDirect()">Reject</button>
+    ${inc.lat ? `<a class="btn btn-secondary btn-sm"
+      href="https://maps.google.com/?q=${inc.lat},${inc.lng}" target="_blank">
+      &#128204; View on Maps</a>` : ''}`;
+
+  // Photos — load fresh
+  const photosEl = document.getElementById('modal-photos');
+  photosEl.innerHTML = '<p class="photo-empty">Loading…</p>';
+
+  document.getElementById('incident-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  // Async load photos
+  if (inc.photo_count > 0) {
+    const r = await fetch(`/api/incidents/${inc.id}/photos`);
+    if (r.ok) {
+      const { photos } = await r.json();
+      if (photos.length) {
+        photosEl.innerHTML = photos.map(p => `
+          <a href="${p.url}" target="_blank">
+            <img src="${p.url}" alt="Evidence photo" loading="lazy">
+          </a>`).join('');
+      } else {
+        photosEl.innerHTML = '<p class="photo-empty">No photos stored.</p>';
+      }
+    } else {
+      photosEl.innerHTML = '<p class="photo-empty">Could not load photos.</p>';
+    }
+  } else {
+    photosEl.innerHTML = '<p class="photo-empty">No photos submitted with this incident.</p>';
   }
 }
+
+function closeModal(event) {
+  // Only close when clicking the backdrop (not the modal box itself)
+  if (event.target === document.getElementById('incident-modal')) closeModalDirect();
+}
+
+function closeModalDirect() {
+  document.getElementById('incident-modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// Close on Escape key
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModalDirect(); });
 
 // ── Roads ─────────────────────────────────────────────────────────────────
 async function loadRoads() {
@@ -254,7 +345,7 @@ function renderAccessibilityList(villages) {
 
 // ── Live Locations (user-submitted GPS) ───────────────────────────────────
 async function loadLiveLocations() {
-  if (!map) return;   // skip if Maps hasn't initialised yet
+  if (!map) return;
   const res = await fetch('/api/locations');
   if (!res.ok) return;
   const { locations } = await res.json();
@@ -267,7 +358,7 @@ async function loadLiveLocations() {
       icon: {
         path: google.maps.SymbolPath.CIRCLE,
         scale: 7,
-        fillColor: '#3B82F6',   // blue — distinct from incident (orange/red)
+        fillColor: '#3B82F6',
         fillOpacity: 0.9,
         strokeColor: '#fff',
         strokeWeight: 2,
@@ -275,18 +366,22 @@ async function loadLiveLocations() {
       zIndex: 5,
     });
     marker.addListener('click', () => {
+      // Find the full incident from cache and open modal
+      const inc = _incidents.find(i => i.id === loc.id);
+      if (inc) { openIncidentModal(inc); return; }
       infoWindow.setContent(
         `<b>&#128204; User-reported location</b><br>
          ${loc.location_name || 'Unknown'}<br>
          Type: ${loc.incident_type || '—'} | Sev: ${loc.severity || '—'}<br>
-         <span style="color:#3B82F6;font-size:0.8rem">${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}</span>`
+         <span style="color:#3B82F6;font-size:0.8rem">
+           ${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}
+         </span>`
       );
       infoWindow.open(map, marker);
     });
     liveLocMarkers.push(marker);
   });
 }
-
 
 // ── Relief + Prioritization ───────────────────────────────────────────────
 async function loadPrioritization() {
@@ -299,15 +394,27 @@ async function loadPrioritization() {
     container.innerHTML = '<div class="empty-state">No scored relief requests yet.</div>';
     return;
   }
-  container.innerHTML = prioritization.map((p, i) => `
+  container.innerHTML = prioritization.map((p, i) => {
+    const rr = p.relief_request || {};
+    const locationStr = rr.incident_location || rr.location_name || '—';
+    const latLng = (rr.incident_lat && rr.incident_lng)
+      ? `<span>&#128204; ${parseFloat(rr.incident_lat).toFixed(4)}, ${parseFloat(rr.incident_lng).toFixed(4)}</span>`
+      : '';
+    return `
     <div class="panel-item">
       <div class="panel-item-title">
         <span class="badge badge-orange">#${i+1}</span>
-        ${p.relief_request?.need_category || '—'}
+        ${(rr.need_category||'—').replace('_',' ')}
         <span class="text-muted text-xs">${p.composite_score?.toFixed(3)}</span>
       </div>
-      <div class="panel-item-meta">${p.rationale ? p.rationale.slice(0,100) + '…' : ''}</div>
-    </div>`).join('');
+      <div class="panel-item-meta">
+        <span>&#128205; ${locationStr}</span>
+        ${latLng}
+        ${rr.incident_id ? `<span>Incident #${rr.incident_id}</span>` : ''}
+      </div>
+      ${p.rationale ? `<div class="panel-item-meta" style="font-style:italic">${p.rationale.slice(0,100)}…</div>` : ''}
+    </div>`;
+  }).join('');
 }
 
 // ── Briefings ─────────────────────────────────────────────────────────────
@@ -375,12 +482,11 @@ async function generateBriefing() {
 
 // ── Stats summary ─────────────────────────────────────────────────────────
 function refreshStats() {
-  fetch('/api/incidents').then(r => r.json()).then(({ incidents }) => {
-    setChip('stat-total',    incidents.length);
-    setChip('stat-verified', incidents.filter(i => i.status === 'verified').length);
-    setChip('stat-pending',  incidents.filter(i => i.status === 'pending').length);
-    setChip('stat-incomplete',incidents.filter(i => i.status === 'incomplete').length);
-  });
+  if (!_incidents.length) return;
+  setChip('stat-total',     _incidents.length);
+  setChip('stat-verified',  _incidents.filter(i => i.status === 'verified').length);
+  setChip('stat-pending',   _incidents.filter(i => i.status === 'pending').length);
+  setChip('stat-incomplete',_incidents.filter(i => i.status === 'incomplete').length);
 }
 function setChip(id, val) {
   const el = document.getElementById(id);
