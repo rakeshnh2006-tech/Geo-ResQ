@@ -12,8 +12,9 @@ __pycache__/
 venv/
 
 # SQLite dev databases
-*.db
-instance/
+instance/*.db
+instance/briefings/*
+!instance/briefings/.gitkeep
 
 # Uploaded user photos
 frontend/static/uploads/*

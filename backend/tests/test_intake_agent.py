@@ -178,20 +178,22 @@ class TestRunIntake:
 
         assert incident.status == IncidentStatus.incomplete
 
-    def test_watsonx_failure_sets_incomplete(self, app):
+    def test_watsonx_failure_uses_fallback(self, app):
         from backend.utils.watsonx_client import WatsonxError
         with patch("backend.agents.intake_agent.generate",
                    side_effect=WatsonxError("service down")):
             incident = run_intake("Flooding at Balehonnur")
 
-        assert incident.status == IncidentStatus.incomplete
+        # Rule-based fallback fills required fields → status is pending, not incomplete
+        assert incident.status == IncidentStatus.pending
         assert incident.id is not None   # still persisted
 
-    def test_bad_json_sets_incomplete(self, app):
+    def test_bad_json_uses_fallback(self, app):
         with patch("backend.agents.intake_agent.generate", return_value="not json at all"):
             incident = run_intake("Roads blocked near Mudigere")
 
-        assert incident.status == IncidentStatus.incomplete
+        # Rule-based fallback fills required fields → status is pending, not incomplete
+        assert incident.status == IncidentStatus.pending
 
     def test_reporter_id_saved(self, app):
         with patch("backend.agents.intake_agent.generate", return_value=GOOD_RESPONSE):

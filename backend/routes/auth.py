@@ -29,7 +29,7 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
     if current_user.is_authenticated:
-        return redirect(url_for("public.index"))
+        return redirect(_next_safe())
 
     form = RegisterForm()
     if form.validate_on_submit():

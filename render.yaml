@@ -3,8 +3,19 @@ services:
     name: georesq
     runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt && python scripts/init_db.py
+    # System libraries needed by WeasyPrint (PDF export)
+    packages:
+      - libpango-1.0-0
+      - libpangoft2-1.0-0
+      - libcairo2
+      - libgdk-pixbuf2.0-0
+      - libffi-dev
+    buildCommand: |
+      pip install -r requirements.txt &&
+      mkdir -p instance/briefings &&
+      python scripts/init_db.py
     startCommand: gunicorn "backend.app:create_app('production')" --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    healthCheckPath: /healthz
     envVars:
       - key: FLASK_ENV
         value: production
@@ -26,6 +37,10 @@ services:
         value: AIzaSyA78ELcIe9VmvvkaBtm7fHj6B8lvfKyH6I
       - key: RATELIMIT_STORAGE_URI
         value: memory://
+      - key: PDF_DIR
+        value: /opt/render/project/src/instance/briefings
+      - key: UPLOAD_FOLDER
+        value: /opt/render/project/src/frontend/static/uploads
 
 databases:
   - name: georesq-db

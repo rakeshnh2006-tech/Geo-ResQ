@@ -1,43 +1,94 @@
-
 # Web framework
-Flask==3.0.3
+Flask==3.1.3
 Flask-Login==0.6.3
-Flask-WTF==1.2.1
-Flask-Limiter==3.8.0
+Flask-WTF==1.3.0
+Flask-Limiter==4.1.1
 Flask-SQLAlchemy==3.1.1
-email-validator==2.2.0
+Werkzeug==3.1.9
+WTForms==3.3.2
+email-validator==2.4.0
+itsdangerous==2.2.0
+Jinja2==3.1.6
+MarkupSafe==3.0.4
+blinker==1.9.0
+click==8.5.1
+limits==5.8.0
 
 # Database
-SQLAlchemy==2.0.36
-PyMySQL==1.1.1
-cryptography==43.0.3
-psycopg2-binary==2.9.9
+SQLAlchemy==2.1.9
+PyMySQL==1.2.4
+psycopg2-binary==2.9.13
 
-# LLM
-ibm-watsonx-ai==1.1.2
+# LLM — IBM watsonx.ai
+ibm_watsonx_ai==1.9.1
+ibm-cos-sdk==2.14.3
+ibm-cos-sdk-core==2.14.3
+ibm-cos-sdk-s3transfer==2.14.3
+lomond==0.3.3
 
 # Validation
-pydantic==2.9.2
+pydantic==2.14.3
+pydantic_core==2.50.4
+annotated-types==0.8.0
+typing_extensions==4.16.0
+typing-inspection==0.4.5
 
-# Graph
-networkx==3.4.2
+# Graph (road network)
+networkx==3.7
 
-# PDF export
-WeasyPrint==62.3
+# PDF export (WeasyPrint)
+weasyprint==70.0
+cssselect2==0.10.1
+pydyf==0.13.0
+tinycss2==1.5.1
+tinyhtml5==2.1.0
+webencodings==0.6.1
+fonttools==4.68.0
+pyphen==0.18.1
+pillow==13.0.0
+zopfli==0.4.3
+brotli==1.2.1
 
 # Auth
-bcrypt==4.2.0
+bcrypt==5.0.0
 
 # Logging
-python-json-logger==2.0.7
+python-json-logger==4.2.0
 
 # OSM import
-osmium==3.7.0
+osmium==4.3.2
+numpy==2.5.5
 
 # WSGI server
-gunicorn==23.0.0
+gunicorn==27.0.1
 
 # Utilities
-python-dotenv==1.0.1
-requests==2.32.3
-haversine==2.8.1
+python-dotenv==1.2.4
+requests==2.34.2
+haversine==2.9.0
+certifi==2026.10.23
+charset-normalizer==3.5.2
+idna==3.20
+urllib3==2.8.0
+
+# HTTP (watsonx dependency)
+anyio==4.16.0
+httpcore==1.0.9
+httpx==0.28.1
+h11==0.16.0
+
+# Data (watsonx / OSM dependencies)
+pandas==3.1.1
+python-dateutil==2.9.0.post0
+six==1.17.0
+tabulate==0.10.0
+jmespath==1.0.1
+cachetools==8.0.2
+Deprecated==3.0.1
+wrapt==2.5.2
+ordered-set==4.1.0
+dnspython==2.9.2
+packaging==26.3
+pycparser==3.12
+cffi==2.1.1
+Pygments==2.21.0
