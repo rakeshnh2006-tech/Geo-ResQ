@@ -1,0 +1,38 @@
+# Environment & secrets
+.env
+*.env
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+
+# SQLite dev databases
+*.db
+instance/
+
+# Uploaded user photos
+frontend/static/uploads/*
+!frontend/static/uploads/.gitkeep
+
+# Test / coverage artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Debug scripts
+debug_*.py
+
+# Logs
+*.log
