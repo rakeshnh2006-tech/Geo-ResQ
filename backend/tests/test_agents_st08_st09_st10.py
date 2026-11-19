@@ -118,12 +118,14 @@ class TestReliefAssessmentFormulas:
             result = _classify_need("We need a doctor urgently")
         assert result == NeedCategory.medical
 
-    def test_classify_need_watsonx_failure_returns_none(self):
+    def test_classify_need_watsonx_failure_uses_fallback(self):
         from backend.utils.watsonx_client import WatsonxError
         with patch("backend.agents.relief_assessment_agent.generate",
                    side_effect=WatsonxError("fail")):
-            result = _classify_need("need help")
-        assert result is None
+            result = _classify_need("we need food supplies")
+        # Keyword fallback kicks in — always returns a NeedCategory, never None
+        assert result is not None
+        assert result == NeedCategory.food
 
 
 class TestRunReliefAssessment:

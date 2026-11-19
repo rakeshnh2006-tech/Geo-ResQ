@@ -50,13 +50,24 @@ class ReliefRequest(db.Model):
     )
 
     def to_dict(self) -> dict:
-        return {
+        d = {
             "id": self.id,
             "incident_id": self.incident_id,
             "need_category": self.need_category.value if self.need_category else None,
             "urgency_score": self.urgency_score,
+            "raw_text": self.raw_text,
             "created_at": self.created_at.isoformat(),
         }
+        # Embed incident location so the dashboard can show it without a second fetch
+        if self.incident:
+            d["location_name"] = self.incident.location_name
+            d["incident_lat"] = self.incident.lat
+            d["incident_lng"] = self.incident.lng
+            d["incident_severity"] = self.incident.severity
+            d["incident_type"] = (
+                self.incident.incident_type.value if self.incident.incident_type else None
+            )
+        return d
 
     def __repr__(self) -> str:
         return f"<ReliefRequest id={self.id} need={self.need_category} urgency={self.urgency_score}>"

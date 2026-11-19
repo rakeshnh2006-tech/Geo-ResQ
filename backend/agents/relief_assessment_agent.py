@@ -62,17 +62,42 @@ _CATEGORY_MAP = {
     "rescue": NeedCategory.rescue,
 }
 
+# Keyword fallback — used when Watsonx is unavailable
+_KEYWORD_CATEGORIES: list[tuple[NeedCategory, list[str]]] = [
+    (NeedCategory.rescue,  ["rescue", "trapped", "stranded", "evacuate", "evacuation",
+                            "missing", "buried", "collapsed", "washed away", "cut off"]),
+    (NeedCategory.medical, ["medical", "medicine", "medicines", "doctor", "hospital",
+                            "injured", "injury", "sick", "illness", "ambulance",
+                            "first aid", "snake bite", "casualty", "casualties"]),
+    (NeedCategory.water,   ["water", "drinking water", "clean water", "dehydrat",
+                            "flood", "waterlogged"]),
+    (NeedCategory.food,    ["food", "supplies", "supply", "hungry", "starving",
+                            "ration", "grain", "rice", "meals"]),
+]
 
-def _classify_need(raw_text: str) -> NeedCategory | None:
-    """Call Granite to classify need. Returns None on failure."""
+
+def _keyword_classify(raw_text: str) -> NeedCategory:
+    """Rule-based fallback when Granite is unavailable."""
+    text = raw_text.lower()
+    for category, keywords in _KEYWORD_CATEGORIES:
+        if any(kw in text for kw in keywords):
+            return category
+    return NeedCategory.food   # safest default
+
+
+def _classify_need(raw_text: str) -> NeedCategory:
+    """Call Granite to classify need; falls back to keyword matching."""
     prompt = _CLASSIFY_PROMPT.format(raw_text=raw_text[:1500])
     try:
         result = generate(prompt, max_new_tokens=8, temperature=0.0)
         word = re.sub(r"[^a-z]", "", result.lower().strip().split()[0])
-        return _CATEGORY_MAP.get(word)
+        granite_result = _CATEGORY_MAP.get(word)
+        if granite_result:
+            return granite_result
+        log.warning("Granite returned unrecognised category %r — using keyword fallback", word)
     except (WatsonxError, IndexError, ValueError) as exc:
-        log.warning("Need classification failed: %s", exc)
-        return None
+        log.warning("Need classification failed (%s) — using keyword fallback", exc)
+    return _keyword_classify(raw_text)
 
 
 # ---------------------------------------------------------------------------
