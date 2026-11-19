@@ -12,6 +12,7 @@ const liveLocMarkers   = [];   // user-submitted GPS pins (blue)
 
 // Cache of all incidents loaded (used by gallery + modal)
 let _incidents = [];
+const _incidentMap = new Map();   // id → incident object — safe lookup from onclick
 
 // ── Map initialisation (called by Google Maps callback) ──────────────────
 function initMap() {
@@ -49,6 +50,8 @@ async function loadIncidents() {
   if (!res.ok) return;
   const { incidents } = await res.json();
   _incidents = incidents;
+  _incidentMap.clear();
+  incidents.forEach(i => _incidentMap.set(i.id, i));
   renderIncidentList(incidents);
   renderIncidentMarkers(incidents);
   loadImagesGallery(incidents);
@@ -84,16 +87,16 @@ function renderIncidentList(incidents) {
   }
   container.innerHTML = incidents.map(inc => `
     <div class="panel-item" data-id="${inc.id}" id="incident-card-${inc.id}"
-         style="cursor:pointer" onclick="openIncidentModal(${JSON.stringify(inc).replace(/"/g,'&quot;')})">
+         style="cursor:pointer" onclick="openIncidentById(${inc.id})">
       <div class="panel-item-title">
         <span class="severity-dot sev-${inc.severity || 1}"></span>
-        ${inc.location_name || '<em style="opacity:.6">Extracting location…</em>'}
+        ${_esc(inc.location_name) || '<em style="opacity:.6">Extracting location…</em>'}
         <span class="badge badge-${inc.status}">${inc.status}</span>
       </div>
       ${inc.raw_text ? `
       <div class="panel-item-meta" style="font-style:italic;color:var(--text-secondary);
            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">
-        "${inc.raw_text.slice(0,90)}${inc.raw_text.length > 90 ? '…' : ''}"
+        &ldquo;${_esc(inc.raw_text.slice(0,90))}${inc.raw_text.length > 90 ? '…' : ''}&rdquo;
       </div>` : ''}
       <div class="panel-item-meta">
         <span>${inc.incident_type || '—'}</span>
@@ -105,7 +108,7 @@ function renderIncidentList(incidents) {
       <div class="panel-item-actions" onclick="event.stopPropagation()">
         <button class="btn btn-sm btn-secondary" onclick="verifyIncident(${inc.id})">Verify</button>
         <button class="btn btn-sm btn-danger"    onclick="rejectIncident(${inc.id})">Reject</button>
-        <button class="btn btn-sm btn-secondary" onclick="openIncidentModal(${JSON.stringify(inc).replace(/"/g,'&quot;')})">&#128247; Detail</button>
+        <button class="btn btn-sm btn-secondary" onclick="openIncidentById(${inc.id})">&#128247; Detail</button>
       </div>
     </div>`).join('');
 }
@@ -138,17 +141,33 @@ async function loadImagesGallery(incidents) {
   }
 
   gallery.innerHTML = allPhotos.map(p => `
-    <div class="gallery-item" onclick="openIncidentModal(${JSON.stringify(p.incident).replace(/"/g,'&quot;')})">
+    <div class="gallery-item" onclick="openIncidentById(${p.incident.id})">
       <img src="${p.url}" alt="Photo for incident #${p.incident.id}" loading="lazy">
       <div class="gallery-label">
-        #${p.incident.id} ${p.incident.location_name || ''}
+        #${p.incident.id} ${_esc(p.incident.location_name) || ''}
       </div>
     </div>`).join('');
 }
 
+// ── HTML escape helper (prevents XSS and broken onclick attrs) ────────────
+function _esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ── Open modal by ID (safe — avoids inline JSON in onclick) ───────────────
+function openIncidentById(id) {
+  const inc = _incidentMap.get(id);
+  if (inc) openIncidentModal(inc);
+}
+
 // ── Incident detail modal ─────────────────────────────────────────────────
 async function openIncidentModal(inc) {
-  if (typeof inc === 'string') { try { inc = JSON.parse(inc); } catch(_) { return; } }
 
   // Set header
   document.getElementById('modal-title').textContent =
