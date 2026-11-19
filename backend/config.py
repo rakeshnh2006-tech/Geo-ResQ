@@ -3,14 +3,20 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Render.com gives DATABASE_URL as postgres:// but SQLAlchemy 2.x needs postgresql://
+_db_url = os.environ.get("DATABASE_URL", "")
+if _db_url.startswith("postgres://"):
+    _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+    os.environ["DATABASE_URL"] = _db_url
+
 
 class Config:
     # Flask
-    SECRET_KEY = os.environ.get("SECRET_KEY", "")
+    SECRET_KEY = os.environ.get("SECRET_KEY", "change-me-in-production")
     WTF_CSRF_ENABLED = True
 
     # Database
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "")
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "sqlite:///georesq_dev.db")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         "pool_pre_ping": True,
@@ -29,6 +35,10 @@ class Config:
 
     # Google Maps
     GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "")
+
+    # Upload folder
+    UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", "frontend/static/uploads")
+    MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50 MB max request
 
 
 class DevelopmentConfig(Config):
@@ -55,6 +65,8 @@ class TestingConfig(Config):
 
 class ProductionConfig(Config):
     DEBUG = False
+    # In production, DATABASE_URL must be set as an environment variable
+    # (Render, Railway, Heroku all inject it automatically)
 
 
 config_map = {
