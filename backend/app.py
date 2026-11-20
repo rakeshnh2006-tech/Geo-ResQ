@@ -40,6 +40,18 @@ def create_app(env: str | None = None) -> Flask:
                 return send_from_directory(d, filename)
         return send_from_directory(os.path.join(static_dir, "uploads"), filename)
 
+    @app.route("/debug-templates")
+    def _debug_templates():
+        from flask import jsonify
+        import glob
+        return jsonify({
+            "base_dir": base_dir,
+            "template_dir": template_dir,
+            "template_dir_exists": os.path.exists(template_dir),
+            "files_in_template_dir": glob.glob(f"{template_dir}/**", recursive=True) if os.path.exists(template_dir) else [],
+            "frontend_glob": glob.glob(os.path.abspath(os.path.join(base_dir, "..", "frontend")) + "/**", recursive=True),
+        })
+
     _configure_logging(app)
 
     db.init_app(app)
