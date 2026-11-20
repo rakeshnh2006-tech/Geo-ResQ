@@ -6,6 +6,7 @@ Vercel's Python runtime looks for a WSGI app in api/index.py exposed as `app`.
 import os
 import shutil
 import sys
+import urllib.parse
 from pathlib import Path
 
 # Add repo root to path so `backend` package is importable
@@ -34,13 +35,74 @@ if not current_db_url or current_db_url.startswith("sqlite:///georesq"):
 
 from backend.app import create_app, db
 
-app = create_app("production")
+flask_app = create_app("production")
 
 # Auto-initialize and seed database on cold start if needed
-with app.app_context():
+with flask_app.app_context():
     try:
         db.create_all()
         from scripts.seed_db import seed
         seed()
     except Exception as exc:
         print(f"Startup DB init notice: {exc}")
+
+
+class VercelGatewayMiddleware:
+    """
+    WSGI middleware for Vercel Serverless Python deployments.
+    Restores the client-requested PATH_INFO and cleans QUERY_STRING
+    when Vercel rewrite rules route incoming traffic to /api/index.
+    """
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+
+    def __getattr__(self, name):
+        return getattr(self.wsgi_app, name)
+
+    def __call__(self, environ, start_response):
+        qs = environ.get("QUERY_STRING", "")
+        parsed = urllib.parse.parse_qs(qs, keep_blank_values=True)
+
+        if "__vercel_path" in parsed:
+            target_path = parsed.pop("__vercel_path")[0]
+            if not target_path or target_path == "/":
+                environ["PATH_INFO"] = "/"
+            else:
+                environ["PATH_INFO"] = ("/" + target_path.lstrip("/")).split("?")[0]
+
+            clean_pairs = []
+            for k, vals in parsed.items():
+                for v in vals:
+                    clean_pairs.append(f"{urllib.parse.quote(k)}={urllib.parse.quote(v)}")
+            environ["QUERY_STRING"] = "&".join(clean_pairs)
+        else:
+            path = environ.get("PATH_INFO", "")
+            if path in ("/api/index", "/api/index.py", "/api", ""):
+                orig = (
+                    environ.get("HTTP_X_FORWARDED_URI")
+                    or environ.get("HTTP_X_MATCHED_PATH")
+                    or environ.get("HTTP_X_ORIGINAL_URI")
+                )
+                if orig and orig not in ("/api/index", "/api/index.py", "/api"):
+                    environ["PATH_INFO"] = ("/" + orig.lstrip("/")).split("?")[0]
+                elif environ.get("HTTP_X_NOW_ROUTE_MATCHES"):
+                    matches = urllib.parse.parse_qs(environ["HTTP_X_NOW_ROUTE_MATCHES"])
+                    if "1" in matches and matches["1"]:
+                        environ["PATH_INFO"] = "/" + matches["1"][0].lstrip("/")
+                    else:
+                        environ["PATH_INFO"] = "/"
+                else:
+                    environ["PATH_INFO"] = "/"
+            elif path.startswith("/api/index/"):
+                environ["PATH_INFO"] = path[len("/api/index"):]
+            elif path.startswith("/api/index.py/"):
+                environ["PATH_INFO"] = path[len("/api/index.py"):]
+
+        if not environ.get("PATH_INFO", "").startswith("/"):
+            environ["PATH_INFO"] = "/" + environ.get("PATH_INFO", "")
+
+        return self.wsgi_app(environ, start_response)
+
+
+# Expose `app` for Vercel's Python runtime
+app = VercelGatewayMiddleware(flask_app)

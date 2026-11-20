@@ -2,12 +2,16 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/static/uploads/(.*)",
+      "destination": "/api/index?__vercel_path=/static/uploads/$1"
+    },
+    {
       "source": "/static/(.*)",
       "destination": "/static/$1"
     },
     {
       "source": "/(.*)",
-      "destination": "/api/index.py"
+      "destination": "/api/index?__vercel_path=/$1"
     }
   ],
   "env": {
