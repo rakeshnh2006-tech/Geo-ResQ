@@ -98,6 +98,13 @@ class Incident(db.Model):
             "status": self.status.value,
             "created_at": self.created_at.isoformat(),
             "photo_count": len(self.photos) if self.photos else 0,
+            "reporter": {
+                "id": self.reporter.id,
+                "full_name": self.reporter.full_name,
+                "email": self.reporter.email,
+                "role": self.reporter.role.value if hasattr(self.reporter.role, "value") else str(self.reporter.role),
+            } if self.reporter else None,
+            "reporter_name": self.reporter.full_name if self.reporter else "Anonymous Citizen",
         }
 
     def __repr__(self) -> str:

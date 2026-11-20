@@ -89,6 +89,12 @@ def create_incident():
             "affected_households": incident.affected_households,
             "report_time": incident.report_time.isoformat() if incident.report_time else None,
             "created_at": incident.created_at.isoformat(),
+            "reporter": {
+                "id": incident.reporter.id,
+                "full_name": incident.reporter.full_name,
+                "email": incident.reporter.email,
+            } if incident.reporter else None,
+            "reporter_name": incident.reporter.full_name if incident.reporter else "Anonymous Citizen",
         }
     }), 201
 

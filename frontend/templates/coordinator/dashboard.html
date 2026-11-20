@@ -5,73 +5,166 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <style>
   /* Full-bleed dashboard */
-  main.container { padding-top: 20px; padding-bottom: 20px; max-width: 100%; }
+  main.container {
+    padding-top: 20px;
+    padding-bottom: 20px;
+    max-width: 100%;
+  }
 
   /* ── Detail modal ─────────────────────────────────────────── */
   .modal-overlay {
-    display: none; position: fixed; inset: 0; z-index: 1000;
-    background: rgba(0,0,0,0.55); backdrop-filter: blur(4px);
-    align-items: center; justify-content: center;
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    align-items: center;
+    justify-content: center;
   }
-  .modal-overlay.open { display: flex; }
+
+  .modal-overlay.open {
+    display: flex;
+  }
+
   .modal-box {
     background: var(--surface, #fff);
-    border-radius: 16px; padding: 24px 28px;
-    width: min(680px, 95vw); max-height: 85vh;
-    overflow-y: auto; position: relative;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    border-radius: 16px;
+    padding: 24px 28px;
+    width: min(680px, 95vw);
+    max-height: 85vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
   }
+
   .modal-close {
-    position: absolute; top: 14px; right: 16px;
-    background: none; border: none; font-size: 1.3rem;
-    cursor: pointer; color: var(--text-muted, #888); line-height: 1;
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    background: none;
+    border: none;
+    font-size: 1.3rem;
+    cursor: pointer;
+    color: var(--text-muted, #888);
+    line-height: 1;
   }
-  .modal-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 14px; }
+
+  .modal-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 14px;
+  }
+
   .modal-meta-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px;
-    margin-bottom: 14px; font-size: 0.85rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 16px;
+    margin-bottom: 14px;
+    font-size: 0.85rem;
   }
-  .modal-meta-grid dt { color: var(--text-muted, #888); }
-  .modal-meta-grid dd { font-weight: 600; margin: 0; }
+
+  .modal-meta-grid dt {
+    color: var(--text-muted, #888);
+  }
+
+  .modal-meta-grid dd {
+    font-weight: 600;
+    margin: 0;
+  }
+
   .modal-quote {
-    background: var(--bg, #faf6f0); border-left: 3px solid var(--accent, #f97316);
-    padding: 10px 14px; border-radius: 6px; font-style: italic;
-    font-size: 0.88rem; margin-bottom: 14px; color: var(--text-secondary, #555);
+    background: var(--bg, #faf6f0);
+    border-left: 3px solid var(--accent, #f97316);
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-style: italic;
+    font-size: 0.88rem;
+    margin-bottom: 14px;
+    color: var(--text-secondary, #555);
   }
+
   .modal-photos-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 8px; margin-top: 10px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 8px;
+    margin-top: 10px;
   }
+
   .modal-photos-grid a img {
-    width: 100%; aspect-ratio: 1; object-fit: cover;
-    border-radius: 8px; border: 1.5px solid var(--border, #e5e7eb);
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1.5px solid var(--border, #e5e7eb);
     transition: transform .15s;
   }
-  .modal-photos-grid a img:hover { transform: scale(1.04); }
-  .photo-empty {
-    color: var(--text-muted, #888); font-size: .85rem; padding: 8px 0;
+
+  .modal-photos-grid a img:hover {
+    transform: scale(1.04);
   }
+
+  .photo-empty {
+    color: var(--text-muted, #888);
+    font-size: .85rem;
+    padding: 8px 0;
+  }
+
   /* ── Images gallery tab ────────────────────────────────────── */
   .gallery-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    gap: 6px; padding: 8px 0;
+    gap: 6px;
+    padding: 8px 0;
   }
+
   .gallery-item {
-    position: relative; aspect-ratio: 1; border-radius: 8px;
-    overflow: hidden; cursor: pointer;
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
     border: 1.5px solid var(--border, #e5e7eb);
   }
+
   .gallery-item img {
-    width: 100%; height: 100%; object-fit: cover;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
     transition: transform .15s;
   }
-  .gallery-item:hover img { transform: scale(1.06); }
+
+  .gallery-item:hover img {
+    transform: scale(1.06);
+  }
+
   .gallery-item .gallery-label {
-    position: absolute; bottom: 0; left: 0; right: 0;
-    background: linear-gradient(transparent, rgba(0,0,0,.55));
-    color: #fff; font-size: 0.65rem; padding: 4px 5px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(transparent, rgba(0, 0, 0, .55));
+    color: #fff;
+    font-size: 0.65rem;
+    padding: 4px 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── Tab nav compact fit ── */
+  .tab-nav {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: thin;
+  }
+
+  .tab-btn {
+    white-space: nowrap;
+    font-size: 0.8rem;
+    padding: 6px 10px;
   }
 </style>
 {% endblock %}
@@ -143,16 +236,21 @@
       <div id="tab-roads" class="tab-panel">
         <div class="flex items-center justify-between mb-2">
           <span class="text-sm font-semibold">Blocked Roads</span>
-          <button class="btn btn-secondary btn-sm"
-                  onclick="fetch('/api/accessibility/run',{method:'POST',headers:{'X-CSRFToken':getCsrfToken()}}).then(()=>{clearMap();loadAll()})">
+          <button class="btn btn-secondary btn-sm" id="btn-re-analysis" onclick="runAccessibilityAnalysis()">
             Re-run Analysis
           </button>
         </div>
         <div id="road-list" class="panel-list mb-3">
           <div class="empty-state"><span class="spinner"></span></div>
         </div>
+
         <p class="text-sm font-semibold mb-2">Isolated Villages</p>
-        <div id="accessibility-list" class="panel-list">
+        <div id="accessibility-list" class="panel-list mb-3">
+          <div class="empty-state"><span class="spinner"></span></div>
+        </div>
+
+        <p class="text-sm font-semibold mb-2">Road Network Segments (Manage Status)</p>
+        <div id="all-roads-list" class="panel-list">
           <div class="empty-state"><span class="spinner"></span></div>
         </div>
       </div>
@@ -178,6 +276,17 @@
             Generate
           </button>
         </div>
+
+        <div id="briefings-selection-bar" style="display:none;align-items:center;justify-content:space-between;padding:6px 8px;margin-bottom:8px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;font-size:0.8rem">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin:0;font-weight:600;color:#4b5563">
+            <input type="checkbox" id="briefing-select-all" onchange="toggleSelectAllBriefings(this.checked)" style="cursor:pointer;width:14px;height:14px">
+            <span>Select All</span>
+          </label>
+          <button id="btn-delete-selected-briefings" class="btn btn-danger btn-sm" style="display:none;font-size:0.75rem;padding:3px 10px" onclick="deleteSelectedBriefings()">
+            🗑️ Delete Selected (<span id="briefings-selected-num">0</span>)
+          </button>
+        </div>
+
         <div id="briefing-list" class="panel-list">
           <div class="empty-state"><span class="spinner"></span></div>
         </div>
@@ -227,9 +336,8 @@
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 
 {% if config.GOOGLE_MAPS_API_KEY %}
-<script
-  src="https://maps.googleapis.com/maps/api/js?key={{ config.GOOGLE_MAPS_API_KEY }}&callback=initMap"
-  async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key={{ config.GOOGLE_MAPS_API_KEY }}&callback=initMap" async
+  defer></script>
 {% else %}
 <script>
   const mapEl = document.getElementById('map');

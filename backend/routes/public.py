@@ -101,6 +101,10 @@ def live_locations():
                 "incident_type": inc.incident_type.value if inc.incident_type else None,
                 "severity": inc.severity,
                 "status": inc.status.value if inc.status else None,
+                "raw_text": inc.raw_text,
+                "reporter_name": inc.reporter.full_name if inc.reporter else "Anonymous Citizen",
+                "reporter_email": inc.reporter.email if inc.reporter else None,
+                "created_at": inc.created_at.isoformat() if inc.created_at else None,
             }
             for inc in incidents
         ]

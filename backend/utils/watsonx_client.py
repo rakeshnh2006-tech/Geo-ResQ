@@ -36,12 +36,19 @@ _RETRY_BASE_DELAY = 1.0   # seconds
 
 
 def _call_with_retry(fn, *args, **kwargs) -> Any:
+    api_key = current_app.config.get("WATSONX_API_KEY", "")
+    if not api_key:
+        raise WatsonxError("WATSONX_API_KEY is not configured.")
+
     last_exc: Exception | None = None
     for attempt in range(_MAX_RETRIES + 1):
         try:
             return fn(*args, **kwargs)
         except Exception as exc:
             last_exc = exc
+            err_str = str(exc).lower()
+            if "api_key" in err_str or "unauthorized" in err_str or "401" in err_str:
+                raise WatsonxError(f"watsonx auth error: {exc}") from exc
             if attempt < _MAX_RETRIES:
                 delay = _RETRY_BASE_DELAY * (2 ** attempt)
                 log.warning(

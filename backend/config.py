@@ -4,10 +4,27 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Render.com gives DATABASE_URL as postgres:// but SQLAlchemy 2.x needs postgresql://
-_db_url = os.environ.get("DATABASE_URL", "")
-if _db_url.startswith("postgres://"):
-    _db_url = _db_url.replace("postgres://", "postgresql://", 1)
-    os.environ["DATABASE_URL"] = _db_url
+def _get_database_uri() -> str:
+    url = os.environ.get("DATABASE_URL", "")
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+        os.environ["DATABASE_URL"] = url
+    if url:
+        return url
+
+    # Vercel / serverless: filesystem is read-only except /tmp
+    if os.environ.get("VERCEL"):
+        tmp_db = "/tmp/georesq_dev.db"
+        bundled = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "instance", "georesq_dev.db"))
+        if not os.path.exists(tmp_db) and os.path.exists(bundled):
+            import shutil
+            try:
+                shutil.copy2(bundled, tmp_db)
+            except Exception:
+                pass
+        return f"sqlite:///{tmp_db}"
+
+    return "sqlite:///georesq_dev.db"
 
 
 class Config:
@@ -16,7 +33,7 @@ class Config:
     WTF_CSRF_ENABLED = True
 
     # Database
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "sqlite:///georesq_dev.db")
+    SQLALCHEMY_DATABASE_URI = _get_database_uri()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         "pool_pre_ping": True,

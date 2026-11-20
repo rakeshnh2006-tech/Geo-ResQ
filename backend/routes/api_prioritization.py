@@ -29,12 +29,12 @@ def get_prioritization():
 @login_required
 @coordinator_required
 def run_prioritization_endpoint():
-    scores = run_prioritization()
+    scores = run_prioritization(force_rescore=True)
     log_action(
         "prioritization.run",
         payload={"scored_count": len(scores)},
     )
     return jsonify({
         "scored": len(scores),
-        "message": f"Scored {len(scores)} new relief requests.",
+        "message": f"Scored {len(scores)} relief requests.",
     }), 200

@@ -20,3 +20,8 @@ app = create_app("production")
 with app.app_context():
     db.create_all()
     print("✅ Database tables created successfully.")
+    try:
+        from scripts.seed_db import seed
+        seed()
+    except Exception as exc:
+        print(f"Seed note: {exc}")

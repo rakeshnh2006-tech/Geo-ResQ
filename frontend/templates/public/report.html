@@ -39,13 +39,19 @@
       <!-- Live location widget -->
       <div class="form-group">
         <label>Share Your Live Location <span class="text-muted">(recommended)</span></label>
-        <div class="flex items-center gap-1" style="flex-wrap:wrap">
+        <div class="flex items-center gap-1 mb-2" style="flex-wrap:wrap">
           <button type="button" class="btn btn-secondary btn-sm" id="btn-locate"
-                  onclick="shareLocation('user_lat','user_lng','loc-status')">
+                  onclick="triggerShareLocation()">
             &#128204; Share My Location
           </button>
           <span id="loc-status" class="text-sm text-muted"></span>
         </div>
+
+        <!-- Interactive Map for Reporter Location -->
+        <div id="report-map" style="width:100%;height:250px;border-radius:var(--radius-md);border:1.5px solid var(--border);background:#e5e7eb;position:relative"></div>
+        <p class="text-xs text-muted mt-1">
+          &#128204; Click anywhere on the map or drag the pin to pinpoint the exact location of the incident.
+        </p>
       </div>
 
       <!-- Photo / Camera widget -->
@@ -247,5 +253,112 @@ document.getElementById('report-form').addEventListener('submit', async function
   // 3. Redirect to status page
   window.location.href = '/status';
 });
+
+/* ── Interactive Report Location Map ── */
+let reportMap = null;
+let reportMarker = null;
+
+function initReportMap() {
+  const defaultPos = { lat: 13.0895, lng: 77.5456 }; // Centered near active region / default
+  const mapDiv = document.getElementById('report-map');
+  if (!mapDiv) return;
+
+  reportMap = new google.maps.Map(mapDiv, {
+    center: defaultPos,
+    zoom: 12,
+    mapTypeId: 'terrain',
+    mapTypeControl: false,
+    streetViewControl: false,
+  });
+
+  reportMarker = new google.maps.Marker({
+    position: defaultPos,
+    map: reportMap,
+    draggable: true,
+    title: 'Incident / Reporter Location',
+    animation: google.maps.Animation.DROP,
+  });
+
+  reportMarker.addListener('dragend', function(evt) {
+    updateCoords(evt.latLng.lat(), evt.latLng.lng());
+  });
+
+  reportMap.addListener('click', function(evt) {
+    reportMarker.setPosition(evt.latLng);
+    updateCoords(evt.latLng.lat(), evt.latLng.lng());
+  });
+
+  // Attempt initial GPS check smoothly
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      function(pos) {
+        const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        reportMap.setCenter(p);
+        reportMap.setZoom(15);
+        reportMarker.setPosition(p);
+        updateCoords(p.lat, p.lng);
+      },
+      function() {},
+      { timeout: 5000, maximumAge: 60000 }
+    );
+  }
+}
+
+function updateCoords(lat, lng) {
+  const latEl = document.getElementById('user_lat');
+  const lngEl = document.getElementById('user_lng');
+  if (latEl) latEl.value = lat.toFixed(6);
+  if (lngEl) lngEl.value = lng.toFixed(6);
+  const statusEl = document.getElementById('loc-status');
+  if (statusEl) {
+    statusEl.textContent = `📍 Location pinned: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    statusEl.style.color = 'var(--color-success)';
+  }
+}
+
+function triggerShareLocation() {
+  const statusEl = document.getElementById('loc-status');
+  if (statusEl) {
+    statusEl.textContent = 'Requesting GPS location…';
+    statusEl.style.color = 'var(--text-muted)';
+  }
+
+  if (!navigator.geolocation) {
+    if (statusEl) statusEl.textContent = 'Geolocation not supported by your browser.';
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      if (reportMap && reportMarker) {
+        const p = { lat: lat, lng: lng };
+        reportMap.panTo(p);
+        reportMap.setZoom(16);
+        reportMarker.setPosition(p);
+      }
+      updateCoords(lat, lng);
+    },
+    function(err) {
+      if (statusEl) {
+        const messages = {
+          1: 'Location access denied by browser.',
+          2: 'Location position unavailable.',
+          3: 'Location request timed out.',
+        };
+        statusEl.textContent = messages[err.code] || 'Could not retrieve location.';
+        statusEl.style.color = 'var(--color-danger)';
+      }
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
 </script>
+
+{% if config.GOOGLE_MAPS_API_KEY %}
+<script
+  src="https://maps.googleapis.com/maps/api/js?key={{ config.GOOGLE_MAPS_API_KEY }}&callback=initReportMap"
+  async defer></script>
+{% endif %}
 {% endblock %}

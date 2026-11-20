@@ -21,12 +21,24 @@ def create_app(env: str | None = None) -> Flask:
     env = env or os.environ.get("FLASK_ENV", "production")
     cfg = config_map[env]
 
+    base_dir = os.path.abspath(os.path.dirname(__file__))
+    template_dir = os.path.abspath(os.path.join(base_dir, "..", "frontend", "templates"))
+    static_dir = os.path.abspath(os.path.join(base_dir, "..", "frontend", "static"))
+
     app = Flask(
         __name__,
-        template_folder="../frontend/templates",
-        static_folder="../frontend/static",
+        template_folder=template_dir,
+        static_folder=static_dir,
     )
     app.config.from_object(cfg)
+
+    @app.route("/static/uploads/<path:filename>")
+    def _serve_uploaded_file(filename):
+        from flask import send_from_directory
+        for d in ["/tmp/uploads", os.path.join(static_dir, "uploads")]:
+            if os.path.exists(os.path.join(d, filename)):
+                return send_from_directory(d, filename)
+        return send_from_directory(os.path.join(static_dir, "uploads"), filename)
 
     _configure_logging(app)
 

@@ -32,9 +32,17 @@ def _allowed(filename: str) -> bool:
 
 
 def _upload_dir() -> Path:
-    """Return (and create) the uploads directory inside frontend/static."""
-    base = Path(current_app.static_folder) / "uploads"
-    base.mkdir(parents=True, exist_ok=True)
+    """Return (and create) the uploads directory."""
+    custom = current_app.config.get("UPLOAD_FOLDER")
+    if custom:
+        base = Path(custom)
+    else:
+        base = Path(current_app.static_folder) / "uploads"
+    try:
+        base.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        base = Path("/tmp/uploads")
+        base.mkdir(parents=True, exist_ok=True)
     return base
 
 

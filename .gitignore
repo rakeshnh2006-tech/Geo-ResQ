@@ -37,3 +37,4 @@ debug_*.py
 
 # Logs
 *.log
+instance/:memory:

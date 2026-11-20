@@ -37,6 +37,7 @@ from backend.models.incident import Incident, IncidentStatus, IncidentType
 from backend.models.prioritization_score import PrioritizationScore
 from backend.models.relief_request import NeedCategory, ReliefRequest
 from backend.models.briefing import Briefing
+from backend.models.user import User, UserRole
 
 
 # ---------------------------------------------------------------------------
@@ -52,6 +53,23 @@ def app():
         yield application
         db.session.remove()
         db.drop_all()
+
+
+@pytest.fixture()
+def coordinator_client(app):
+    client = app.test_client()
+    user = User(
+        full_name="Disaster Coordinator",
+        email="coord_test@georesq.example.com",
+        role=UserRole.coordinator,
+    )
+    user.set_password("Password1!")
+    db.session.add(user)
+    db.session.commit()
+    with client.session_transaction() as sess:
+        sess["_user_id"] = str(user.id)
+        sess["_fresh"] = True
+    return client
 
 
 def _make_incident(app, severity=4, households=100, status=IncidentStatus.verified):
@@ -326,3 +344,34 @@ class TestGenerateBriefing:
 
         assert b_id is not None
         assert has_fallback
+
+
+class TestDeleteBriefings:
+    def test_delete_single_briefing(self, app, coordinator_client):
+        with patch("backend.agents.briefing_agent.generate", return_value="Summary for deletion test."):
+            resp = coordinator_client.post("/api/briefings")
+            assert resp.status_code == 201
+            b_id = resp.get_json()["briefing"]["id"]
+
+        del_resp = coordinator_client.delete(f"/api/briefings/{b_id}")
+        assert del_resp.status_code == 200
+        assert del_resp.get_json()["success"] is True
+
+        with app.app_context():
+            assert db.session.get(Briefing, b_id) is None
+
+    def test_batch_delete_briefings(self, app, coordinator_client):
+        b_ids = []
+        with patch("backend.agents.briefing_agent.generate", return_value="Summary for batch delete test."):
+            for _ in range(3):
+                resp = coordinator_client.post("/api/briefings")
+                assert resp.status_code == 201
+                b_ids.append(resp.get_json()["briefing"]["id"])
+
+        del_resp = coordinator_client.post("/api/briefings/batch-delete", json={"briefing_ids": b_ids})
+        assert del_resp.status_code == 200
+        assert del_resp.get_json()["deleted_count"] == 3
+
+        with app.app_context():
+            for b_id in b_ids:
+                assert db.session.get(Briefing, b_id) is None

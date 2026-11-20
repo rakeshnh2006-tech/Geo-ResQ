@@ -90,7 +90,7 @@ def _generate_rationale(
     severity: int | None,
     households: int | None,
     category: str | None,
-) -> str | None:
+) -> str:
     prompt = _RATIONALE_PROMPT.format(
         score=score,
         isolated="Yes" if is_isolated else "No",
@@ -99,10 +99,18 @@ def _generate_rationale(
         category=category or "unknown",
     )
     try:
-        return generate(prompt, max_new_tokens=120, temperature=0.3)
+        res = generate(prompt, max_new_tokens=120, temperature=0.3)
+        if res and res.strip():
+            return res.strip()
     except WatsonxError as exc:
-        log.warning("Rationale generation failed: %s", exc)
-        return None
+        log.warning("Rationale generation via Watsonx failed (%s) — using rule fallback", exc)
+
+    # Deterministic rule-based rationale fallback
+    cat_name = (category or "general").replace("_", " ").title()
+    iso_text = "Village is currently isolated by blocked roads." if is_isolated else "Village road connectivity is open."
+    sev_text = f"Incident severity level {severity}/5." if severity else "Incident severity is unrated."
+    hh_text = f"Affects {households} households." if households else "Household count unspecified."
+    return f"{cat_name} relief request prioritized (composite score {score:.3f}). {iso_text} {sev_text} {hh_text}"
 
 
 # ---------------------------------------------------------------------------
@@ -158,34 +166,50 @@ def score_relief_request(relief: ReliefRequest) -> PrioritizationScore:
         category=relief.need_category.value if relief.need_category else None,
     )
 
-    ps = PrioritizationScore(
-        relief_request_id=relief.id,
-        composite_score=composite,
-        isolation_component=iso_c,
-        severity_component=sev_c,
-        household_component=hh_c,
-        need_component=need_c,
-        rationale=rationale,
+    existing_score = db.session.scalar(
+        select(PrioritizationScore).where(PrioritizationScore.relief_request_id == relief.id)
     )
-    db.session.add(ps)
+    if existing_score:
+        existing_score.composite_score = composite
+        existing_score.isolation_component = iso_c
+        existing_score.severity_component = sev_c
+        existing_score.household_component = hh_c
+        existing_score.need_component = need_c
+        existing_score.rationale = rationale
+        ps = existing_score
+    else:
+        ps = PrioritizationScore(
+            relief_request_id=relief.id,
+            composite_score=composite,
+            isolation_component=iso_c,
+            severity_component=sev_c,
+            household_component=hh_c,
+            need_component=need_c,
+            rationale=rationale,
+        )
+        db.session.add(ps)
+
     db.session.commit()
     log.info("PrioritizationScore for relief %d: %.4f", relief.id, composite)
     return ps
 
 
-def run_prioritization() -> list[PrioritizationScore]:
-    """Score all ReliefRequests that do not yet have a PrioritizationScore."""
-    # Find relief requests without a score
-    scored_ids = db.session.scalars(
-        select(PrioritizationScore.relief_request_id)
-    ).all()
-    stmt = select(ReliefRequest)
-    if scored_ids:
-        stmt = stmt.where(ReliefRequest.id.notin_(scored_ids))
+def run_prioritization(force_rescore: bool = False) -> list[PrioritizationScore]:
+    """Score all ReliefRequests that do not yet have a PrioritizationScore.
+    If force_rescore=True, re-scores all requests and updates them in-place."""
+    if not force_rescore:
+        scored_ids = db.session.scalars(
+            select(PrioritizationScore.relief_request_id)
+        ).all()
+        stmt = select(ReliefRequest)
+        if scored_ids:
+            stmt = stmt.where(ReliefRequest.id.notin_(scored_ids))
+        requests = db.session.scalars(stmt).all()
+    else:
+        requests = db.session.scalars(select(ReliefRequest)).all()
 
-    unscored = db.session.scalars(stmt).all()
     scores = []
-    for relief in unscored:
+    for relief in requests:
         scores.append(score_relief_request(relief))
     log.info("Prioritization run: scored %d requests", len(scores))
     return scores

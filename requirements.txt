@@ -36,8 +36,9 @@ typing-inspection==0.4.5
 # Graph (road network)
 networkx==3.7
 
-# PDF export (WeasyPrint)
+# PDF export
 weasyprint==70.0
+fpdf2==2.9.0
 cssselect2==0.10.1
 pydyf==0.13.0
 tinycss2==1.5.1

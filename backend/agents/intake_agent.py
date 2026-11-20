@@ -304,6 +304,44 @@ def run_intake(
         incident.lng = user_lng
         missing_fields = []   # rule-based always produces required fields
 
+    # ── Step 3.5: Geocode location against known villages / region centroid ──
+    if (incident.lat is None or incident.lng is None):
+        try:
+            from backend.models.village import Village
+            from sqlalchemy import select, func
+            query_loc = (incident.location_name or location_hint or "").strip()
+            v = None
+            if query_loc:
+                v = db.session.scalars(
+                    select(Village).where(func.lower(Village.name) == query_loc.lower())
+                ).first()
+                if not v:
+                    v = db.session.scalars(
+                        select(Village).where(
+                            func.lower(Village.name).contains(query_loc.lower()) |
+                            func.lower(query_loc).contains(func.lower(Village.name))
+                        )
+                    ).first()
+            if not v:
+                # Scan raw text for any known village name
+                text_lower = (raw_text + " " + (location_hint or "")).lower()
+                all_villages = db.session.scalars(select(Village)).all()
+                for village_candidate in all_villages:
+                    if village_candidate.name.lower() in text_lower:
+                        v = village_candidate
+                        if not incident.location_name:
+                            incident.location_name = v.name
+                        break
+            if v:
+                incident.lat = v.lat
+                incident.lng = v.lng
+                log.info("Geocoded incident to village %s (%f, %f)", v.name, v.lat, v.lng)
+            elif query_loc and "malenadu" in query_loc.lower():
+                incident.lat = 13.75
+                incident.lng = 75.5
+        except Exception as exc:
+            log.warning("Geocoding lookup failed: %s", exc)
+
     # ── Step 4: Determine status ───────────────────────────────────────────
     # Watsonx failure alone is no longer enough to mark incomplete —
     # the rule-based fallback always fills the required fields.
