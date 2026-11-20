@@ -5,10 +5,10 @@
 
 const POLL_INTERVAL_MS = 60_000;
 let map, infoWindow;
-const incidentMarkers  = [];
-const roadPolylines    = [];
-const villageMarkers   = [];
-const liveLocMarkers   = [];   // user-submitted GPS pins (blue)
+const incidentMarkers = [];
+const roadPolylines = [];
+const villageMarkers = [];
+const liveLocMarkers = [];   // user-submitted GPS pins (blue)
 
 // Cache of all incidents loaded (used by gallery + modal)
 let _incidents = [];
@@ -30,15 +30,15 @@ function initMap() {
 
 // ── Severity → marker colour ─────────────────────────────────────────────
 function severityColour(sev) {
-  return ['#16a34a','#65a30d','#ca8a04','#ea580c','#dc2626'][Math.min((sev||1)-1,4)];
+  return ['#16a34a', '#65a30d', '#ca8a04', '#ea580c', '#dc2626'][Math.min((sev || 1) - 1, 4)];
 }
 
 // ── Clear existing map objects ────────────────────────────────────────────
 function clearMap() {
-  incidentMarkers.forEach(m => m.setMap(null));  incidentMarkers.length = 0;
-  roadPolylines.forEach(p => p.setMap(null));    roadPolylines.length = 0;
-  villageMarkers.forEach(m => m.setMap(null));   villageMarkers.length = 0;
-  liveLocMarkers.forEach(m => m.setMap(null));   liveLocMarkers.length = 0;
+  incidentMarkers.forEach(m => m.setMap(null)); incidentMarkers.length = 0;
+  roadPolylines.forEach(p => p.setMap(null)); roadPolylines.length = 0;
+  villageMarkers.forEach(m => m.setMap(null)); villageMarkers.length = 0;
+  liveLocMarkers.forEach(m => m.setMap(null)); liveLocMarkers.length = 0;
 }
 
 // ── Auto-fit map to encompass all markers ─────────────────────────────────
@@ -177,7 +177,7 @@ function renderIncidentList(incidents) {
       ${inc.raw_text ? `
       <div class="panel-item-meta" style="font-style:italic;color:var(--text-secondary);
            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">
-        &ldquo;${_esc(inc.raw_text.slice(0,90))}${inc.raw_text.length > 90 ? '…' : ''}&rdquo;
+        &ldquo;${_esc(inc.raw_text.slice(0, 90))}${inc.raw_text.length > 90 ? '…' : ''}&rdquo;
       </div>` : ''}
       <div class="panel-item-meta">
         <span>👤 ${_esc(inc.reporter_name || 'Anonymous')}</span>
@@ -261,16 +261,18 @@ async function openIncidentModal(inc) {
 
   // Meta grid
   const metaEl = document.getElementById('modal-meta');
-  const statusColour = { verified:'#16a34a', pending:'#ca8a04', incomplete:'#dc2626',
-                         duplicate:'#6b7280', rejected:'#9f1239' };
+  const statusColour = {
+    verified: '#16a34a', pending: '#ca8a04', incomplete: '#dc2626',
+    duplicate: '#6b7280', rejected: '#9f1239'
+  };
   const reporterName = inc.reporter_name || (inc.reporter ? inc.reporter.full_name : 'Anonymous Citizen');
   metaEl.innerHTML = `
     <dt>Reporter</dt>   <dd>${_esc(reporterName)}</dd>
-    <dt>Type</dt>       <dd>${(inc.incident_type||'—').replace('_',' ')}</dd>
+    <dt>Type</dt>       <dd>${(inc.incident_type || '—').replace('_', ' ')}</dd>
     <dt>Severity</dt>   <dd>${inc.severity ? '⬛'.repeat(inc.severity) + ' ' + inc.severity + '/5' : '—'}</dd>
-    <dt>Status</dt>     <dd style="color:${statusColour[inc.status]||'inherit'}">${inc.status}</dd>
+    <dt>Status</dt>     <dd style="color:${statusColour[inc.status] || 'inherit'}">${inc.status}</dd>
     <dt>Households</dt> <dd>${inc.affected_households ?? '—'}</dd>
-    <dt>Reported</dt>   <dd>${inc.created_at ? inc.created_at.slice(0,19).replace('T',' ') : '—'}</dd>
+    <dt>Reported</dt>   <dd>${inc.created_at ? inc.created_at.slice(0, 19).replace('T', ' ') : '—'}</dd>
     <dt>Photos</dt>     <dd>${inc.photo_count || 0}</dd>`;
 
   // Location
@@ -354,7 +356,7 @@ function renderRoadPolylines(roads) {
     const poly = new google.maps.Polyline({
       path: [
         { lat: road.start.lat, lng: road.start.lng },
-        { lat: road.end.lat,   lng: road.end.lng   },
+        { lat: road.end.lat, lng: road.end.lng },
       ],
       map,
       strokeColor: road.blocked ? '#dc2626' : '#2563eb',
@@ -590,7 +592,7 @@ async function loadPrioritization() {
     <div class="panel-item" style="padding:10px 12px;margin-bottom:8px">
       <div class="panel-item-title" style="display:flex;align-items:center;justify-content:space-between">
         <div>
-          <span class="badge badge-orange">#${i+1}</span>
+          <span class="badge badge-orange">#${i + 1}</span>
           <b>${category}</b>
         </div>
         <span class="badge badge-secondary" style="font-weight:700">Score: ${p.composite_score?.toFixed(3)}</span>
@@ -646,7 +648,7 @@ async function loadBriefings() {
           <input type="checkbox" class="briefing-checkbox" value="${b.id}" onchange="onBriefingCheckboxChange()" style="cursor:pointer;width:15px;height:15px">
           <b>📄 Briefing #${b.id}</b>
         </label>
-        <span class="badge badge-secondary" style="font-size:0.75rem">${b.created_at?.slice(0,19).replace('T',' ')}</span>
+        <span class="badge badge-secondary" style="font-size:0.75rem">${b.created_at?.slice(0, 19).replace('T', ' ')}</span>
       </div>
       <div class="panel-item-meta" style="margin:4px 0">
         <span>By: <b>${_esc(b.generated_by || 'Coordinator')}</b></span>
@@ -758,22 +760,28 @@ async function deleteSelectedBriefings() {
 
 // ── Actions ───────────────────────────────────────────────────────────────
 async function verifyIncident(id) {
-  await fetch(`/api/incidents/${id}/verify`, { method: 'POST',
-    headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' } });
+  await fetch(`/api/incidents/${id}/verify`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' }
+  });
   loadIncidents();
 }
 
 async function rejectIncident(id) {
   if (!confirm('Reject this incident?')) return;
-  await fetch(`/api/incidents/${id}/reject`, { method: 'POST',
-    headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' } });
+  await fetch(`/api/incidents/${id}/reject`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' }
+  });
   loadIncidents();
 }
 
 async function toggleRoad(id, currentlyBlocked) {
   const action = currentlyBlocked ? 'unblock' : 'block';
-  await fetch(`/api/roads/${id}/${action}`, { method: 'POST',
-    headers: { 'X-CSRFToken': getCsrfToken() } });
+  await fetch(`/api/roads/${id}/${action}`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': getCsrfToken() }
+  });
   clearMap();
   await loadAll();
 }
@@ -782,8 +790,10 @@ async function runPrioritization() {
   const btn = document.getElementById('btn-run-prio');
   if (btn) { btn.disabled = true; btn.textContent = 'Re-scoring…'; }
   try {
-    await fetch('/api/prioritization/run', { method: 'POST',
-      headers: { 'X-CSRFToken': getCsrfToken() } });
+    await fetch('/api/prioritization/run', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrfToken() }
+    });
     await loadPrioritization();
   } catch (e) {
     console.error('Prioritization error:', e);
@@ -795,8 +805,10 @@ async function generateBriefing() {
   const btn = document.getElementById('btn-briefing');
   if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
   try {
-    await fetch('/api/briefings', { method: 'POST',
-      headers: { 'X-CSRFToken': getCsrfToken() } });
+    await fetch('/api/briefings', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrfToken() }
+    });
     await loadBriefings();
   } catch (e) {
     console.error('Briefing error:', e);
@@ -807,10 +819,10 @@ async function generateBriefing() {
 // ── Stats summary ─────────────────────────────────────────────────────────
 function refreshStats() {
   if (!_incidents.length) return;
-  setChip('stat-total',     _incidents.length);
-  setChip('stat-verified',  _incidents.filter(i => i.status === 'verified').length);
-  setChip('stat-pending',   _incidents.filter(i => i.status === 'pending').length);
-  setChip('stat-incomplete',_incidents.filter(i => i.status === 'incomplete').length);
+  setChip('stat-total', _incidents.length);
+  setChip('stat-verified', _incidents.filter(i => i.status === 'verified').length);
+  setChip('stat-pending', _incidents.filter(i => i.status === 'pending').length);
+  setChip('stat-incomplete', _incidents.filter(i => i.status === 'incomplete').length);
 }
 function setChip(id, val) {
   const el = document.getElementById(id);

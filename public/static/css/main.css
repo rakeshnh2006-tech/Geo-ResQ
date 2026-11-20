@@ -149,8 +149,21 @@ img { max-width: 100%; display: block; }
   display: flex;
   align-items: center;
   gap: 8px;
+  text-decoration: none;
 }
 .navbar-brand:hover { color: var(--accent); opacity: 1; }
+
+.navbar-logo {
+  height: 40px;
+  width: auto;
+  max-width: 150px;
+  object-fit: contain;
+  display: block;
+  transition: transform 0.15s ease-in-out;
+}
+.navbar-brand:hover .navbar-logo {
+  transform: scale(1.03);
+}
 
 .nav-links {
   display: flex;

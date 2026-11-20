@@ -3,6 +3,9 @@
 
 {% block content %}
 <div class="auth-card">
+  <div style="text-align:center;margin-bottom:14px">
+    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="GeoResQ" style="height:48px;object-fit:contain">
+  </div>
   <h1>Log in</h1>
   <p class="auth-subtitle">Welcome back to GeoResQ</p>
   <form method="post" novalidate>

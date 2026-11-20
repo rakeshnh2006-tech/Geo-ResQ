@@ -277,12 +277,15 @@
           </button>
         </div>
 
-        <div id="briefings-selection-bar" style="display:none;align-items:center;justify-content:space-between;padding:6px 8px;margin-bottom:8px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;font-size:0.8rem">
+        <div id="briefings-selection-bar"
+          style="display:none;align-items:center;justify-content:space-between;padding:6px 8px;margin-bottom:8px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;font-size:0.8rem">
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin:0;font-weight:600;color:#4b5563">
-            <input type="checkbox" id="briefing-select-all" onchange="toggleSelectAllBriefings(this.checked)" style="cursor:pointer;width:14px;height:14px">
+            <input type="checkbox" id="briefing-select-all" onchange="toggleSelectAllBriefings(this.checked)"
+              style="cursor:pointer;width:14px;height:14px">
             <span>Select All</span>
           </label>
-          <button id="btn-delete-selected-briefings" class="btn btn-danger btn-sm" style="display:none;font-size:0.75rem;padding:3px 10px" onclick="deleteSelectedBriefings()">
+          <button id="btn-delete-selected-briefings" class="btn btn-danger btn-sm"
+            style="display:none;font-size:0.75rem;padding:3px 10px" onclick="deleteSelectedBriefings()">
             🗑️ Delete Selected (<span id="briefings-selected-num">0</span>)
           </button>
         </div>
